@@ -1,0 +1,34 @@
+[Unit]
+# Продление сертификатов acme.sh. Заменяет строку в crontab, которую
+# ставит установщик acme.sh: ступень 0 осваивает таймеры systemd (learning-ladder),
+# и у них есть то, чего нет у cron, — журнал (journalctl -u acme-renew),
+# состояние последнего прогона и догон пропущенных запусков.
+Description=Продление сертификатов TLS через acme.sh
+Documentation=https://github.com/acmesh-official/acme.sh/wiki/Cron-Job
+
+# network-online, а не network: продление ходит в API DNS Selectel и к УЦ.
+# network.target поднимается до того, как появляется маршрут, и запуск
+# на секунду раньше стоил бы отказа с невнятной сетевой ошибкой.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Полный путь обязателен. Установщик acme.sh прописывает алиас в ~/.bashrc,
+# а systemd интерактивную оболочку не запускает и .bashrc не читает —
+# короткое имя acme.sh здесь не разрешится. То же касается ssh host acme.sh
+# и будущих скриптов выката (Story 2.1).
+#
+# --home задаётся явно по той же причине: переменная LE_WORKING_DIR живёт
+# в ~/.acme.sh/acme.sh.env, который тоже подключается из .bashrc.
+#
+# Удостоверяющий центр здесь НЕ указывается: он задан параметром
+# конфигурации DEFAULT_ACME_SERVER в ~/.acme.sh/account.conf
+# (acme.sh --set-default-ca --server letsencrypt). Смена УЦ не требует
+# правки этого юнита — требование AC3.
+ExecStart=/root/.acme.sh/acme.sh --cron --home /root/.acme.sh
+
+# Продление не всегда происходит: acme.sh сам решает по сроку и по ARI.
+# Прогон без обновления — штатный исход, а не сбой.
+SuccessExitStatus=0
