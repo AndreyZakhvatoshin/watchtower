@@ -1,9 +1,9 @@
 <?php
 
+use App\Logging\UseJsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
-use App\Logging\UseJsonFormatter;
 use Monolog\Processor\PsrLogMessageProcessor;
 
 return [

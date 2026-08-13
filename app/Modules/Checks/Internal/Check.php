@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Modules\Checks\Internal;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
+
+/**
+ * Внутренняя модель модуля. За пределы Checks не выходит — наружу уезжает
+ * CheckSnapshot (AD-6).
+ *
+ * @property int $id
+ * @property string $ulid
+ * @property string $url
+ * @property int $interval_seconds
+ * @property int $expected_status
+ * @property bool $is_active
+ */
+class Check extends Model
+{
+    use SoftDeletes;
+
+    protected $table = 'checks';
+
+    protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'interval_seconds' => 'integer',
+            'expected_status' => 'integer',
+            'is_active' => 'boolean',
+            'interval_applied_at' => 'immutable_datetime',
+            'created_at' => 'immutable_datetime',
+            'updated_at' => 'immutable_datetime',
+            'deleted_at' => 'immutable_datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $check): void {
+            // ULID генерируется здесь, а не в контроллере: любой путь создания —
+            // форма, консольная команда, сидер — обязан получить внешний
+            // идентификатор, и забыть об этом невозможно.
+            $check->ulid ??= (string) Str::ulid();
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'ulid';
+    }
+}
