@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Modules\Checks\Contracts\CheckDraft;
 use App\Modules\Checks\Contracts\CheckInterval;
+use App\Rules\NotLinkLocalAddress;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,7 +31,10 @@ class CheckRequest extends FormRequest
     {
         return [
             // url:http,https отвергает и мусор, и схему ftp, и адрес без схемы.
-            'url' => ['required', 'string', 'max:2048', 'url:http,https'],
+            // NotLinkLocalAddress добивает то, что url пропускает: 169.254.0.0/16
+            // и fe80::/10. Петля и RFC1918 разрешены намеренно — наблюдение за
+            // собственной инфраструктурой это цель проекта, а не обход правила.
+            'url' => ['required', 'string', 'max:2048', 'url:http,https', new NotLinkLocalAddress],
             'interval_seconds' => ['required', 'integer', Rule::in(CheckInterval::values())],
             'expected_status' => ['required', 'integer', 'between:100,599'],
             'is_active' => ['sometimes', 'boolean'],

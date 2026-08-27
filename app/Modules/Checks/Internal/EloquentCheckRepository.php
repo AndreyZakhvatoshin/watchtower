@@ -74,6 +74,11 @@ class EloquentCheckRepository implements CheckRepository
         // адреса — тихо и без единой ошибки.
         $intervalChanged = $check->interval_seconds !== $draft->intervalSeconds;
 
+        // Тем же способом и по той же причине: состав расписания меняет не
+        // только интервал, но и включение с выключением. Строгое сравнение
+        // корректно — is_active приходит из модели уже булевым (каст в Check).
+        $activationChanged = $check->is_active !== $draft->isActive;
+
         $check->fill([
             'url' => $draft->url,
             'interval_seconds' => $draft->intervalSeconds,
@@ -88,8 +93,11 @@ class EloquentCheckRepository implements CheckRepository
         $check->save();
         $check->refresh();
 
-        $this->log('check updated', $check, ['interval_changed' => $intervalChanged]);
-        CheckUpdated::dispatch($check->ulid, $intervalChanged);
+        $this->log('check updated', $check, [
+            'interval_changed' => $intervalChanged,
+            'activation_changed' => $activationChanged,
+        ]);
+        CheckUpdated::dispatch($check->ulid, $intervalChanged, $activationChanged);
 
         return $this->toSnapshot($check);
     }

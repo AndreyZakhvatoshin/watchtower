@@ -155,6 +155,47 @@ class ChecksCrudTest extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      */
+    public function test_switching_a_check_on_reports_the_change_of_activation(): void
+    {
+        $check = $this->createCheck(['is_active' => false]);
+
+        Event::fake([CheckUpdated::class]);
+
+        $this->put("/checks/{$check->ulid}", [
+            'url' => $check->url,
+            'interval_seconds' => $check->intervalSeconds,
+            'expected_status' => $check->expectedStatus,
+            'is_active' => 1,
+        ])->assertRedirect('/checks');
+
+        // Включение добавляет проверку в состав расписания. Без отдельного
+        // признака подписчик ступени 1 получил бы «просто перечитай поля»
+        // и в сетку её не поставил.
+        Event::assertDispatched(
+            CheckUpdated::class,
+            fn (CheckUpdated $event) => $event->activationChanged && ! $event->intervalChanged,
+        );
+    }
+
+    public function test_editing_the_address_alone_reports_no_schedule_change(): void
+    {
+        $check = $this->createCheck();
+
+        Event::fake([CheckUpdated::class]);
+
+        $this->put("/checks/{$check->ulid}", [
+            'url' => 'https://example.com/other',
+            'interval_seconds' => $check->intervalSeconds,
+            'expected_status' => $check->expectedStatus,
+            'is_active' => 1,
+        ])->assertRedirect('/checks');
+
+        Event::assertDispatched(
+            CheckUpdated::class,
+            fn (CheckUpdated $event) => ! $event->activationChanged && ! $event->intervalChanged,
+        );
+    }
+
     private function createCheck(array $attributes = []): CheckSnapshot
     {
         return $this->repository()->create(new CheckDraft(

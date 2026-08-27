@@ -50,6 +50,44 @@ class ChecksValidationTest extends TestCase
         $this->assertDatabaseCount('checks', 0);
     }
 
+    public function test_link_local_addresses_are_rejected(): void
+    {
+        // 169.254.169.254 — служба метаданных облака: оттуда достают учётные
+        // данные инстанса. Легитимной проверки в link-local нет.
+        $addresses = [
+            'http://169.254.169.254/latest/meta-data/',
+            'https://169.254.1.1/health',
+            'http://[fe80::1]/health',
+            'http://[::ffff:169.254.169.254]/health',
+        ];
+
+        foreach ($addresses as $url) {
+            $this->post('/checks', [...$this->validPayload(), 'url' => $url])
+                ->assertSessionHasErrors('url');
+        }
+
+        $this->assertDatabaseCount('checks', 0);
+    }
+
+    public function test_loopback_and_private_addresses_stay_allowed(): void
+    {
+        // Наблюдение за собственной инфраструктурой — цель проекта (CAP-6),
+        // а на ступени 5 сервисы уедут в кластер с адресами RFC1918. Запрет
+        // этих диапазонов зарезал бы основной сценарий, а не атаку.
+        $addresses = [
+            'http://127.0.0.1/health',
+            'http://10.1.2.3/health',
+            'http://192.168.0.10/health',
+        ];
+
+        foreach ($addresses as $url) {
+            $this->post('/checks', [...$this->validPayload(), 'url' => $url])
+                ->assertSessionHasNoErrors();
+        }
+
+        $this->assertDatabaseCount('checks', 3);
+    }
+
     public function test_the_arbitrary_interval_is_rejected_even_when_it_looks_reasonable(): void
     {
         // Произвольные интервалы делают сетку расписания (AD-8) непредсказуемой
