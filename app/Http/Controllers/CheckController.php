@@ -37,7 +37,7 @@ class CheckController extends Controller
 
         // Проверку человеку опознаёт адрес, а не ULID: идентификатор нужен
         // машине и лежит в таблице, в подтверждении он только шум.
-        return redirect('/checks')->with('status', "Проверка {$check->url} заведена.");
+        return redirect()->route('checks.index')->with('status', "Проверка {$check->url} заведена.");
     }
 
     public function edit(string $ulid): View
@@ -54,7 +54,7 @@ class CheckController extends Controller
 
         $check = $this->checks->update($ulid, $request->toDraft());
 
-        return redirect('/checks')->with('status', "Проверка {$check->url} изменена.");
+        return redirect()->route('checks.index')->with('status', "Проверка {$check->url} изменена.");
     }
 
     public function destroy(string $ulid): RedirectResponse
@@ -63,7 +63,7 @@ class CheckController extends Controller
 
         $this->checks->delete($ulid);
 
-        return redirect('/checks')->with('status', "Проверка {$check->url} удалена.");
+        return redirect()->route('checks.index')->with('status', "Проверка {$check->url} удалена.");
     }
 
     private function find(string $ulid): CheckSnapshot

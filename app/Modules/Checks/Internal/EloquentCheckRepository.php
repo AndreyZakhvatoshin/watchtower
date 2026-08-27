@@ -8,6 +8,7 @@ use App\Modules\Checks\Contracts\CheckSnapshot;
 use App\Modules\Checks\Events\CheckCreated;
 use App\Modules\Checks\Events\CheckDeleted;
 use App\Modules\Checks\Events\CheckUpdated;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class EloquentCheckRepository implements CheckRepository
@@ -49,9 +50,13 @@ class EloquentCheckRepository implements CheckRepository
             'interval_seconds' => $draft->intervalSeconds,
             'expected_status' => $draft->expectedStatus,
             'is_active' => $draft->isActive,
-            // Сетка расписания начинается в момент рождения проверки.
-            'interval_applied_at' => now(),
         ]);
+
+        // Присваивается напрямую, а не через конструктор: interval_applied_at
+        // не входит в $fillable намеренно — двигать сетку расписания вправе
+        // только модуль, и только при смене интервала. Сетка начинается
+        // в момент рождения проверки.
+        $check->interval_applied_at = now();
 
         $check->save();
 
@@ -110,9 +115,16 @@ class EloquentCheckRepository implements CheckRepository
         // проверки, а единственный разрешённый cross-модульный внешний ключ
         // на checks.id не ломается. is_active снимается заодно — так проверка
         // уходит из активного набора даже там, где кто-то забудет про scope.
-        $check->is_active = false;
-        $check->save();
-        $check->delete();
+        // Две записи — одна операция. Без транзакции падение между ними
+        // оставляет проверку включённой и удалённой одновременно, а событие
+        // уезжает подписчику раньше, чем изменение зафиксировано: подписчик
+        // прочитал бы состояние, которого в базе ещё нет, а при откате —
+        // которого не будет никогда.
+        DB::transaction(function () use ($check): void {
+            $check->is_active = false;
+            $check->save();
+            $check->delete();
+        });
 
         $this->log('check deleted', $check);
         CheckDeleted::dispatch($check->ulid);

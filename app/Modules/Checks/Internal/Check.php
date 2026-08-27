@@ -23,7 +23,17 @@ class Check extends Model
 
     protected $table = 'checks';
 
-    protected $guarded = [];
+    // Белый список, а не $guarded = []: массовое присваивание не должно
+    // доставать до id, ulid и interval_applied_at. Первые два назначает
+    // система, третий двигается только при смене интервала — открытый для
+    // fill() он позволил бы сдвинуть сетку расписания правкой формы.
+    // Модуль — образец для пяти остальных, и копироваться будет это.
+    protected $fillable = [
+        'url',
+        'interval_seconds',
+        'expected_status',
+        'is_active',
+    ];
 
     protected function casts(): array
     {
@@ -46,10 +56,5 @@ class Check extends Model
             // идентификатор, и забыть об этом невозможно.
             $check->ulid ??= (string) Str::ulid();
         });
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'ulid';
     }
 }

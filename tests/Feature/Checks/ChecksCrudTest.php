@@ -196,6 +196,33 @@ class ChecksCrudTest extends TestCase
         );
     }
 
+    public function test_unknown_ulid_gives_404_on_every_route_that_takes_one(): void
+    {
+        // 404 проверялся только на edit. update и destroy идут теми же
+        // маршрутами с тем же параметром, и «не найдено» у них обязано быть
+        // отказом, а не 500 от firstOrFail внутри репозитория.
+        $missing = '01JZZZZZZZZZZZZZZZZZZZZZZZ';
+
+        $this->get("/checks/{$missing}/edit")->assertNotFound();
+
+        $this->put("/checks/{$missing}", [
+            'url' => 'https://example.com/health',
+            'interval_seconds' => 60,
+            'expected_status' => 200,
+            'is_active' => 1,
+        ])->assertNotFound();
+
+        $this->delete("/checks/{$missing}")->assertNotFound();
+    }
+
+    public function test_a_malformed_key_never_reaches_the_controller(): void
+    {
+        // whereUlid отбивает мусор на маршрутизаторе: до базы и до лога
+        // такой запрос не доходит вовсе.
+        $this->get('/checks/не-ulid/edit')->assertNotFound();
+        $this->delete('/checks/1')->assertNotFound();
+    }
+
     private function createCheck(array $attributes = []): CheckSnapshot
     {
         return $this->repository()->create(new CheckDraft(

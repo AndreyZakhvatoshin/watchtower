@@ -40,6 +40,14 @@ class ChecksLoggingTest extends TestCase
 
         $repository->delete($check->ulid);
 
+        // Отбор по модулю обязателен: в тот же канал пишут middleware и
+        // фреймворк, и assertCount по всему потоку ловил бы чужие строки —
+        // тест то падал бы, то проходил в зависимости от соседей.
+        $records = array_values(array_filter(
+            $records,
+            static fn ($record): bool => ($record->context['module'] ?? null) === 'checks',
+        ));
+
         $this->assertCount(3, $records, 'Создание, изменение и удаление обязаны оставить по записи');
 
         foreach ($records as $record) {

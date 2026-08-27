@@ -27,7 +27,7 @@
                              объём и порядок создания. --}}
                         <td><code>{{ $check->ulid }}</code></td>
                         <td>{{ $check->url }}</td>
-                        <td>{{ $check->interval()->label() }}</td>
+                        <td>{{ $check->intervalLabel() }}</td>
                         <td>{{ $check->expectedStatus }}</td>
                         <td>{{ $check->isActive ? 'включена' : 'выключена' }}</td>
                         {{-- Время показывается в UTC: хранится и сравнивается оно
