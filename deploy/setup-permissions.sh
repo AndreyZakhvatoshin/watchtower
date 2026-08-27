@@ -35,8 +35,13 @@ find "$APP_DIR" -type f -exec chmod 640 {} +
 chown -R "$APP_USER":"$APP_USER" "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 find "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" -type d -exec chmod 750 {} +
 
-# Исполняемый бит нужен только artisan.
+# Исполняемый бит возвращается точечно: find выше снял его со ВСЕХ файлов,
+# включая этот скрипт. Без строки про самого себя второй запуск падал бы
+# с «Permission denied» — и у root тоже: привилегия не подменяет отсутствующий
+# бит x, ядру нечего исполнять. Обходится запуском через bash, но чинить
+# обходом то, что чинится строкой, — плохая сделка.
 chmod 750 "$APP_DIR/artisan"
+find "$APP_DIR/deploy" -type f -name '*.sh' -exec chmod 750 {} +
 
 echo "== ACL для nginx =="
 
