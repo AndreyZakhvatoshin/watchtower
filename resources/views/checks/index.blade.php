@@ -36,8 +36,19 @@
                         <td class="muted">{{ $check->intervalAppliedAt->toIso8601ZuluString('millisecond') }}</td>
                         <td>
                             <a href="{{ route('checks.edit', $check->ulid) }}">править</a>
+                            {{-- Текст подтверждения едет data-атрибутом, а не внутри
+                                 onsubmit. Атрибут — данные: Blade экранирует значение
+                                 для HTML, браузер отдаёт его скрипту через dataset
+                                 как строку, и разбором JS оно не проходит нигде.
+
+                                 Прежняя схема подставляла адрес внутрь строки в
+                                 onsubmit, и экранирования Blade там не хватало:
+                                 HTML-парсер декодировал `&#039;` обратно в апостроф
+                                 ДО того, как значение атрибута попадало в движок JS.
+                                 Апостроф в адресе закрывал строку, остаток адреса
+                                 становился кодом — хранимый XSS. --}}
                             <form class="inline" method="post" action="{{ route('checks.destroy', $check->ulid) }}"
-                                  onsubmit="return confirm('Удалить проверку {{ $check->url }}?')">
+                                  data-confirm="Удалить проверку {{ $check->url }}?">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit">удалить</button>
@@ -47,5 +58,19 @@
                 @endforeach
             </tbody>
         </table>
+
+        {{-- Один делегированный обработчик на всю таблицу вместо обработчика в
+             каждой строке: событие submit всплывает до документа. Сборки фронта
+             на этой ступени нет (правило границы языков), поэтому скрипт лежит
+             здесь же, как и стили в макете. --}}
+        <script>
+            document.addEventListener('submit', function (event) {
+                var message = event.target.dataset.confirm;
+
+                if (message && ! window.confirm(message)) {
+                    event.preventDefault();
+                }
+            });
+        </script>
     @endif
 @endsection
